@@ -1,0 +1,39 @@
+[package]
+name = "xhyperd"
+version = "0.1.0"
+edition = "2021"
+authors = ["stackinspector"]
+license = "MPL-2.0"
+repository = "https://github.com/Berylsoft/xhyperd"
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "xhyperd"
+path = "main.rs"
+
+[dependencies]
+# lib
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+http = "1"
+bytes = { version = "1", features = ["serde"] }
+http-serde = "2"
+
+actor = { git = "https://github.com/Berylsoft/actor", branch = "async-traits", features = ["async"] }
+actor-core = { git = "https://github.com/Berylsoft/actor", branch = "async-traits" }
+
+env_logger = { version = "0.11", default-features = false }
+log = "0.4"
+
+hyper = { version = "1", features = ["http1", "server", "client"] }
+http-body-util = "0.1"
+
+futures-lite = "2"
+async-global-executor = "2"
+async-net = "2"
+async-channel = "2"
+async-ctrlc = "1"
+# no need for executor and timer now
+smol-hyper = { version = "0.1", default-features = false }
