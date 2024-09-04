@@ -4,6 +4,12 @@
 //     type Req: xhyperd::RawRequest;
 // }
 
+/*
+HttpContext: filter & executor
+filter: &RawRequest -> bool; static(fn) & dynamic(event to send)
+executor: &RawRequest -> RawResponse
+*/
+
 async fn _main() {
     env_logger::init();
     // TODO how axum with hyper1 do shutdown
@@ -33,19 +39,34 @@ async fn _main() {
                 // let local_ref = ctx.clone();
 
                 async_global_executor::spawn(async move {
-                    let service = hyper::service::service_fn(move |req: hyper::Request<hyper::body::Incoming>| {
+                    let service_fn = move |req: hyper::Request<hyper::body::Incoming>| {
                         // let local_ref = local_ref.clone();
                         async move {
                             let (header, payload) = req.into_parts();
-                            println!("{}", &serde_json::to_string(&xhyperd::RawRequest::from(xhyperd::IncomingRequest {
+                            let raw_req = xhyperd::RawRequest::from(xhyperd::IncomingRequest {
                                 time: std::time::SystemTime::now(),
                                 remote_addr,
                                 header,
                                 payload: http_body_util::BodyExt::collect(payload).await.unwrap().to_bytes(),
-                            })).unwrap());
-                            Ok::<_, core::convert::Infallible>(http::Response::builder().body(String::new()).unwrap())
+                            });
+                            let raw_req_json = serde_json::to_string(&raw_req).unwrap();
+                            println!("{raw_req_json}");
+                            let res = xhyperd::RawResponse {
+                                time: std::time::SystemTime::now(),
+                                status: http::StatusCode::OK,
+                                version: Default::default(),
+                                headers: http::HeaderMap::new(),
+                                body_log_type: xhyperd::BodyLogType::Full,
+                                body: bytes::Bytes::from(raw_req_json),
+                            };
+                            let (log_res, body) = res.to_log();
+                            let log_res_json = serde_json::to_string(&log_res).unwrap();
+                            println!("{log_res_json}");
+                            let http_res = log_res.build(body);
+                            Ok::<_, core::convert::Infallible>(http_res)
                         }
-                    });
+                    };
+                    let service = hyper::service::service_fn(service_fn);
                     let conn = hyper::server::conn::http1::Builder::new().serve_connection(io, service);
                     // std::pin::pin!(conn).graceful_shutdown()
                     conn.await.unwrap();
